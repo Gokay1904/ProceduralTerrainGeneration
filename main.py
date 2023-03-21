@@ -3,7 +3,6 @@ import numpy as np
 from OpenGL.GL import *
 import ctypes
 from OpenGL.GL.shaders import compileProgram,compileShader
-import moderngl as mgl
 import sys
 
 from OpenGL.raw.GLU import gluPerspective
@@ -50,11 +49,56 @@ class App:
     def quit(self):
         pg.quit()
 
+class MeshSurface:
+    def __init__(self):
+        cell_size = 16
+        _vertices = np.zeros((16,16))
+        # x y z r g b
+        self.verticies = (
+            (0, 0, 0),
+            (1, 0, 0),
+            (0, 0, 1),
+            (1, 0, 1),
+        )
+
+        self.edges = (
+            (0, 1),
+            (0, 2),
+            (1, 2),
+            (1, 3),
+            (2, 3),
+            (0, 3)
+        )
+
+        glBegin(GL_LINES)
+        for edge in self.edges:
+            for vertex in edge:
+                print(self.verticies[vertex])
+                glVertex3fv(self.verticies[vertex])
+        glEnd()
+
+        # self.vertices = np.array(self.vertices,dtype = np.float32)
+        # self.vertex_count = 3
+        #
+        # self.vao = glGenVertexArrays(1)
+        # glBindVertexArray(self.vao)
+        # self.vbo = glGenBuffers(1)
+        # glBindBuffer(GL_ARRAY_BUFFER, self.vbo)
+        # glBufferData(GL_ARRAY_BUFFER, self.vertices.nbytes, self.vertices, GL_STATIC_DRAW)
+        # glEnableVertexAttribArray(0)
+        # glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 24, ctypes.c_void_p(0))
+        # glEnableVertexAttribArray(1)
+        # glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 24, ctypes.c_void_p(1))
+
+    def destroy(self):
+
+        glDeleteVertexArrays(1, (self.vao,))
+        glDeleteBuffers(1, (self.vbo,))
+
 
 
 class Cube:
     def __init__(self):
-
         #x y z r g b
         self.verticies = (
             (1,-1,-1),
