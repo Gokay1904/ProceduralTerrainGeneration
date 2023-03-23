@@ -31,6 +31,7 @@ class App:
         glRotatef(0, 0, 0, 0)
 
         running = True
+        MeshSurface()
         while(running):
 
             for event in pg.event.get():
@@ -38,7 +39,7 @@ class App:
                     running = False
             glRotatef(1, 3, 1, 1)
             glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT)
-            Cube()
+
             pg.display.flip()
             pg.time.wait(10)
 
@@ -51,30 +52,57 @@ class App:
 
 class MeshSurface:
     def __init__(self):
-        cell_size = 16
-        _vertices = np.zeros((16,16))
+        cell_size = 4
+        _vertices = np.zeros(((cell_size+1) ** 2,3))
+
+
+        x_idx = 0
+        z_idx = 0
+
+        ##First create the vertices
+        for i in range(0, _vertices.shape[0]):
+            _vertices[i] = [x_idx,0,z_idx]
+            print(_vertices[i])
+            x_idx +=1
+            if(x_idx > (cell_size)):
+                x_idx = 0
+                z_idx += 1
+
+        _edges = np.zeros(((cell_size + 1) ** 2, 2))
+
+
+        ##Then create grids by binding them.
+        for i in range(0, _vertices.shape[0]):
+            _edges[i] = (i,i+1)
+            _edges[i + 1] = (i,i + cell_size)
+            _edges[i + 2] = (i, i + cell_size)
+            _edges[i + 3] = (i+1, i + 1)
+
+
+
         # x y z r g b
         self.verticies = (
             (0, 0, 0),
             (1, 0, 0),
             (0, 0, 1),
-            (1, 0, 1),
-        )
+            (1, 0, 1),)
 
-        self.edges = (
-            (0, 1),
+        self.edges=(
             (0, 2),
             (1, 2),
+            (0, 1),
             (1, 3),
             (2, 3),
             (0, 3)
         )
 
         glBegin(GL_LINES)
+
         for edge in self.edges:
             for vertex in edge:
-                print(self.verticies[vertex])
+               # print(self.verticies[vertex])
                 glVertex3fv(self.verticies[vertex])
+
         glEnd()
 
         # self.vertices = np.array(self.vertices,dtype = np.float32)
@@ -157,5 +185,4 @@ class Cube:
 
 if __name__ == '__main__':
     app = App()
-
 
