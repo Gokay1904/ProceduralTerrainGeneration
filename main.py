@@ -55,7 +55,6 @@ class MeshSurface:
         cell_size = 4
         _vertices = np.zeros(((cell_size+1) ** 2,3))
 
-
         x_idx = 0
         z_idx = 0
 
@@ -68,40 +67,60 @@ class MeshSurface:
                 x_idx = 0
                 z_idx += 1
 
+
+
         _edges = np.zeros(((cell_size + 1) ** 2, 2))
 
-
-        ##Then create grids by binding them.
         for i in range(0, _vertices.shape[0]):
-            _edges[i] = (i,i+1)
-            _edges[i + 1] = (i,i + cell_size)
-            _edges[i + 2] = (i, i + cell_size)
-            _edges[i + 3] = (i+1, i + 1)
+            if(_vertices[i][0] != cell_size or _vertices[i][0]):
+                _edges[i] = (i,i+1)
+                _edges[i+1] = (i,i+cell_size)
+                _edges[i+2] = (i+cell_size+1,i+cell_size)
+                _edges[i+3] = (i+cell_size+1,i+1)
 
 
 
-        # x y z r g b
-        self.verticies = (
-            (0, 0, 0),
-            (1, 0, 0),
-            (0, 0, 1),
-            (1, 0, 1),)
+                ##Then create grids by binding them.
+       #for i in range(0, _vertices.shape[0]):
 
-        self.edges=(
-            (0, 2),
-            (1, 2),
-            (0, 1),
-            (1, 3),
-            (2, 3),
-            (0, 3)
-        )
+       #    ##Upper Lower Left
+       #    if _vertices[i][0] == 0:
+       #        ##Corners
+       #        if (_vertices[i][2] == 0  or _vertices[i][2] == (cell_size-1)):
+       #            _edges[i] = (i, i + 1)
+       #            _edges[i + 1] = (i, i + cell_size)
+       #            _edges[i + 2] = (i, i + cell_size+1)
+       #            _edges[i + 3] = (i, i)
+       #            return
+       #        else:
+       #            _edges[i] = (i, i + 1)
+       #            _edges[i + 1] = (i, i + cell_size)
+       #            _edges[i + 2] = (i, i + cell_size + 1)
+       #            _edges[i + 3] = (i, i)
+       #            return
+
+       #    ##Upper Lower Right
+       #    elif _vertices[i][0] == cell_size:
+       #        ##Corners
+       #        if (_vertices[i][2] == 0 or _vertices[i][2] == (cell_size - 1)):
+       #            return
+       #        else:
+       #            return
+
+       #    ##Middle Bottoms
+       #    elif _vertices[i][2] == 0 or _vertices[i][2] == (cell_size-1):
+       #        if (_vertices[i][0] > 0 and _vertices[i][0] < 0 ):
+       #            return
+
+       #    ##Middle Tops
+
 
         glBegin(GL_LINES)
 
-        for edge in self.edges:
+        for edge in _edges:
             for vertex in edge:
                # print(self.verticies[vertex])
-                glVertex3fv(self.verticies[vertex])
+                glVertex3fv(self._verticies[vertex])
 
         glEnd()
 
@@ -185,4 +204,3 @@ class Cube:
 
 if __name__ == '__main__':
     app = App()
-
