@@ -26,20 +26,20 @@ class App:
 
         gluPerspective(45,display[0]/display[1],0.1,50.0)
 
-        glTranslatef(0.0, 0.0, -5)
+        glTranslatef(0.0, 0.0, -10)
 
         glRotatef(0, 0, 0, 0)
 
         running = True
-        MeshSurface()
+
         while(running):
 
             for event in pg.event.get():
                 if(event.type == pg.QUIT):
                     running = False
-            glRotatef(1, 3, 1, 1)
+            glRotatef(1, 3, 0, 0)
             glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT)
-
+            MeshSurface()
             pg.display.flip()
             pg.time.wait(10)
 
@@ -52,7 +52,7 @@ class App:
 
 class MeshSurface:
     def __init__(self):
-        cell_size = 4
+        cell_size = 40
         _vertices = np.zeros(((cell_size+1) ** 2,3))
 
         x_idx = 0
@@ -61,66 +61,50 @@ class MeshSurface:
         ##First create the vertices
         for i in range(0, _vertices.shape[0]):
             _vertices[i] = [x_idx,0,z_idx]
-            print(_vertices[i])
+
             x_idx +=1
             if(x_idx > (cell_size)):
                 x_idx = 0
                 z_idx += 1
 
 
+        _edges = np.zeros(((cell_size + 1) * (cell_size) * 2, 2),dtype="int")
 
-        _edges = np.zeros(((cell_size + 1) ** 2, 2))
+        while(True):
+            edge_index = 0
 
-        for i in range(0, _vertices.shape[0]):
-            if(_vertices[i][0] != cell_size or _vertices[i][0]):
-                _edges[i] = (i,i+1)
-                _edges[i+1] = (i,i+cell_size)
-                _edges[i+2] = (i+cell_size+1,i+cell_size)
-                _edges[i+3] = (i+cell_size+1,i+1)
+            for e in range(0, _edges.shape[0], 2):
+                _edges[e] = (edge_index, edge_index + 1)
+
+                edge_index += 1
+                if (edge_index + 1 % cell_size == 0):
+                    edge_index += 1
+                if (edge_index == 20):
+                    break
+
+            edge_index = 0
+
+            for k in range(1, _edges.shape[0], 2):
+                _edges[k] = (edge_index, edge_index + cell_size+1)
+                edge_index += 1
+
+                if (edge_index + cell_size >= 20):
+                    break
 
 
 
-                ##Then create grids by binding them.
-       #for i in range(0, _vertices.shape[0]):
+            break
 
-       #    ##Upper Lower Left
-       #    if _vertices[i][0] == 0:
-       #        ##Corners
-       #        if (_vertices[i][2] == 0  or _vertices[i][2] == (cell_size-1)):
-       #            _edges[i] = (i, i + 1)
-       #            _edges[i + 1] = (i, i + cell_size)
-       #            _edges[i + 2] = (i, i + cell_size+1)
-       #            _edges[i + 3] = (i, i)
-       #            return
-       #        else:
-       #            _edges[i] = (i, i + 1)
-       #            _edges[i + 1] = (i, i + cell_size)
-       #            _edges[i + 2] = (i, i + cell_size + 1)
-       #            _edges[i + 3] = (i, i)
-       #            return
 
-       #    ##Upper Lower Right
-       #    elif _vertices[i][0] == cell_size:
-       #        ##Corners
-       #        if (_vertices[i][2] == 0 or _vertices[i][2] == (cell_size - 1)):
-       #            return
-       #        else:
-       #            return
-
-       #    ##Middle Bottoms
-       #    elif _vertices[i][2] == 0 or _vertices[i][2] == (cell_size-1):
-       #        if (_vertices[i][0] > 0 and _vertices[i][0] < 0 ):
-       #            return
-
-       #    ##Middle Tops
+        print(_edges)
 
 
         glBegin(GL_LINES)
 
         for edge in _edges:
             for vertex in edge:
-               # print(self.verticies[vertex])
-                glVertex3fv(self._verticies[vertex])
+                print(_vertices[vertex])
+                glVertex3fv(_vertices[vertex])
 
         glEnd()
 
