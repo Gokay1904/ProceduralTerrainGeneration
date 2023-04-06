@@ -52,7 +52,7 @@ class App:
 
 class MeshSurface:
     def __init__(self):
-        cell_size = 40
+        cell_size = 30
         _vertices = np.zeros(((cell_size+1) ** 2,3))
 
         x_idx = 0
@@ -77,10 +77,11 @@ class MeshSurface:
                 _edges[e] = (edge_index, edge_index + 1)
 
                 edge_index += 1
-                if (edge_index + 1 % cell_size == 0):
+                if (edge_index % (cell_size+1) == cell_size):
                     edge_index += 1
-                if (edge_index == 20):
-                    break
+
+                    if (edge_index == 100):
+                        break
 
             edge_index = 0
 
@@ -88,7 +89,7 @@ class MeshSurface:
                 _edges[k] = (edge_index, edge_index + cell_size+1)
                 edge_index += 1
 
-                if (edge_index + cell_size >= 20):
+                if (edge_index + cell_size >= 100):
                     break
 
 
