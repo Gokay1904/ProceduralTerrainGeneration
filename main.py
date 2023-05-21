@@ -1,17 +1,12 @@
 import pygame as pg
 import numpy as np
-
 from OpenGL.GL import *
-
+from OpenGL.raw.GLU import gluPerspective
 import matplotlib.pyplot as plt
-
 import tkinter as tk
 from tkinter import Scale, Label
 
-
-from OpenGL.raw.GLU import gluPerspective
-
-
+# This class creates perlin noise map.
 class TerrainModel:
     @staticmethod
     def lerp(a, b, x):
@@ -89,7 +84,6 @@ class OpenGlFrame:
         self.clock = pg.time.Clock()
         self.display = display
 
-
         self.mainLoop(display)
 
     # Main operations like drawing the terrain and updating by each time frame are made here.
@@ -128,18 +122,15 @@ class OpenGlFrame:
 
         self.quit()
 
-
-
     def quit(self):
         pg.quit()
-
 
 #Creating the Mesh using vertices and edge matrices, and defining them to OpenGL
 class TerrainMesh:
 
     def __init__(self, cell_size=10, seed=32, terrain_resolution=10):
         self.cell_size = cell_size
-        self.seed = seed;
+        self.seed = seed
         self.terrain_resolution = terrain_resolution
         self.update_terrain()
 
@@ -152,49 +143,66 @@ class TerrainMesh:
         #Make this linear interpolation x and y
         x, y = np.meshgrid(lin_array, lin_array)
 
+        # We created our perlin noise with this code.
+        _terrain_model = TerrainModel.perlin(x, y, seed=self.seed)
+
+        # This is to exaggeerate values and height. Can be changed 8 is set as a default value.
+        _terrain_model *= 8
+
+        # First create matrix of empty points. If the cell size 4 x 4 that means there should be 5 x 5 points.
         _vertices = np.zeros(((self.cell_size + 1) ** 2, 3))
 
-        _terrain_model = TerrainModel.perlin(x, y, seed=self.seed)
-        _terrain_model *= 8
 
         x_idx = 0
         z_idx = 0
 
         ##First create the vertices
-
         for i in range(0, _vertices.shape[0]):
-            _vertices[i] = [x_idx, _terrain_model[z_idx, x_idx], z_idx]
 
+            # Creates points. x_idx = x position in space, terrain model adjusts the height, z_idx is z posiiton in space.
+            # Do it for each iterations and adds into _vertices matrix
+            _vertices[i] = [x_idx, _terrain_model[z_idx, x_idx], z_idx]
             x_idx += 1
+            # It creates the vertices in row order. So, if it is end of the row then reset the x_idx to 0 to prevent overflow.
             if (x_idx > (self.cell_size)):
                 x_idx = 0
                 z_idx += 1
 
+        # We've created the vertices so far. It is time to connect them each other.
         _edges = np.zeros(((self.cell_size + 1) * (self.cell_size) * 2, 2), dtype="int")
+
+
+        # This loop binds points to each other horizontally and vertically.
         while (True):
 
             edge_index = 0
 
+            # In even indexes the edges is bound horizontally.
             for e in range(0, _edges.shape[0], 2):
+
                 _edges[e] = (edge_index, edge_index + 1)
 
                 edge_index += 1
+
                 if (edge_index % (self.cell_size + 1) == self.cell_size):
                     edge_index += 1
 
-                    if (edge_index == 100):
-                        break
-
             edge_index = 0
 
+            # In odd indexes the edges is bound vertically.
             for k in range(1, _edges.shape[0], 2):
+
+                # Here , edge_index + self.cell_size + 1 refers the the point above the selected point.
                 _edges[k] = (edge_index, edge_index + self.cell_size + 1)
+
                 edge_index += 1
 
+                # Since there is no upper point in the last line. Break the loop.
                 if (edge_index + self.cell_size >= (self.cell_size + 1) ** 2):
                     break
 
             break
+        print(_edges.shape)
 
         self.edges = _edges
         self.vertices = _vertices
@@ -216,12 +224,12 @@ class TerrainMesh:
         glDeleteBuffers(1, (self.vbo,))
 
 
-# When this method is called the openGL frame will be drawn. This will be used in Ttkinter GUI. Whenever the button is clicked this method will be called.
+# When this method is called, the openGL frame will be drawn. This will be used in Ttkinter GUI. Whenever the button is clicked this method will be called.
 def showTerrain(cell_size,seed,resolution):
     if __name__ == '__main__':
         terrain_frame = OpenGlFrame(cell_size,seed,resolution)
 
-# This part will be about Tkinter GUI.
+## This part will be about Tkinter GUI.
 
 # Initialization values of the Tkinter GUI.
 root = tk.Tk()
@@ -256,14 +264,15 @@ terrain_res_text.pack(ipady=5)
 terrain_res_scale = Scale(root, from_=1, to=40,orient = "horizontal")
 terrain_res_scale.pack(ipady=5)
 
+# Get the values from slider values. With these values create the terrain in OpenGL frame.
 def generate_button_clicked():
-        showTerrain(cell_size_scale.get(),seed_scale.get(),terrain_res_scale.get())
+    showTerrain(cell_size_scale.get(),seed_scale.get(),terrain_res_scale.get())
 
-
+# Optionally, top view of the terrain can be seen with this method. It creates a matplotlib frame and creates a heatmap of perlin noise in 2D.
 def perlin_map2D_button_clicked():
     TerrainModel.getTerrain2DView(cell_size_scale.get(), seed_scale.get(),terrain_res_scale.get())
 
-
+# When this button is clicked, the terrain will be generated.
 generate_terrain_button = tk.Button(
     root,
     text='Generate Terrain',
@@ -282,6 +291,7 @@ generate_terrain_button.pack(
     ipady=3,
 )
 
+# When this button is clicked, perlin map of the generated terrain will be drawn.
 perlin_map2D_button = tk.Button(
     root,
     text='Generate 2D Perlin Map',
@@ -295,10 +305,9 @@ perlin_map2D_button.pack(
     expand=False,
 )
 
-
-seed_text = Label(root,text ="Gökay Akçay", font='Helvetica 7 normal')
+seed_text = Label(root,text ="Gökay", font='Helvetica 7 normal')
 seed_text.pack(ipady=5)
 
 
-
+# Renders the Tkinter Frame.
 root.mainloop()
