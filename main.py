@@ -1,104 +1,128 @@
 import pygame as pg
 import numpy as np
-import random
 
 from OpenGL.GL import *
-from pyopengltk import OpenGLFrame
+
+import matplotlib.pyplot as plt
+
 import tkinter as tk
-import ctypes
-from OpenGL.GL.shaders import compileProgram,compileShader
-import sys
+from tkinter import Scale, Label
+
 
 from OpenGL.raw.GLU import gluPerspective
-from numba import njit
 
 
 class TerrainModel:
     @staticmethod
     def lerp(a, b, x):
-        "linear interpolation i.e dot product"
+        # Linearly interpolates between two points. In this model
         return a + x * (b - a)
-        # smoothing function,
-        # the first derivative and second both are zero for this function
 
     @staticmethod
     def fade(f):
+        # Apply fading to displacement vector. Decide whether it is close to the vertices or not.
         return 6 * f ** 5 - 15 * f ** 4 + 10 * f ** 3
-        # gradyan vektörlerini ve noktasal çarpımları hesapla
 
     @staticmethod
     def gradient(c, x, y):
+        # These are the displacement vectors of our corners from the selected point.
         vectors = np.array([[0, 1], [0, -1], [1, 0], [-1, 0]])
         gradient_co = vectors[c % 4]
+
         return gradient_co[:, :, 0] * x + gradient_co[:, :, 1] * y
 
     @staticmethod
     def perlin(x, y, seed=0):
-        # pixel sayılarını esas alarak permütasyon tablosu oluştur.
-        # seed değeri bağlangıç değeridir.
-        # seed fonksiyonunu ayrıca aynı yapıları oluşturmak için kullanabiliriz.
-        # this helps to keep our perlin graph smooth
+
         np.random.seed(seed)
+        # Create values from 0 to 2^n. Here 2^n defined as 128.
         ptable = np.arange(128, dtype=int)
-        # permütasyon tablosundaki değerleri karıştır.
+
+        # To make a random permutation table shuffle the array.
         np.random.shuffle(ptable)
-        # bir boyutlu permütasyon tablosunu iki boyutluya çevir.
-        # böylece interpolasyon işlemlerinde dot product kolay yapılsın.
+
         ptable = np.stack([ptable, ptable]).flatten()
-        # ızgara koordinatları
+
+        # Grid coordinates.
         xi, yi = x.astype(int), y.astype(int)
-        # uzaklık vektörü koordinatları
+        # Displacement vectors.
         xg, yg = x - xi, y - yi
-        # fade(sönme) işlemi uygula
+        # Apply fading operation to the displacement vectors.
         xf, yf = TerrainModel.fade(xg), TerrainModel.fade(yg)
-        # sol üst sağ üst sol alt ve sağ alt için gradyan vektörleri
+        # Create a gradient vectors for upper right, upper left, lower right and lower left. Then multiply it by displacement vectors.
         n00 = TerrainModel.gradient(ptable[ptable[xi] + yi], xg, yg)
         n01 = TerrainModel.gradient(ptable[ptable[xi] + yi + 1], xg, yg - 1)
         n11 = TerrainModel.gradient(ptable[ptable[xi + 1] + yi + 1], xg - 1, yg - 1)
         n10 = TerrainModel.gradient(ptable[ptable[xi + 1] + yi], xg - 1, yg)
-        # iki gradyan vektörü arasındaki değişime interpolasyon uygulayarak ortalamayı hesapla.
+
+        # Apply interpolation horizontally (bottom left corner, bottom right corner)
         x1 = TerrainModel.lerp(n00, n10, xf)
         x2 = TerrainModel.lerp(n01, n11, xf)
+
+        # Find the height value (it will be the height in 3D mesh)
         return TerrainModel.lerp(x1, x2, yf)
 
+    @staticmethod
+    def getTerrain2DView(cell_size, seed=0,terrain_resolution = 10):
+        lin_array = np.linspace(1, terrain_resolution, cell_size + 1, endpoint=False)
+        x, y = np.meshgrid(lin_array, lin_array)
+
+        _terrain_model = TerrainModel.perlin(x, y, seed=seed)
+        _terrain_model *= 8
+        plt.imshow(_terrain_model, origin='upper')
+        plt.show()
 
 
-class App:
-    def __init__(self):
+#This part creates a openGL frame to draw our mesh. Initialization values like frame size, lighting type, color type, perspective view, frame time etc are defined here.
+class OpenGlFrame:
+
+    #Initilization of OpenGL Panel
+    def __init__(self,cell_size,seed,resolution):
 
         pg.init()
         display = (640,480)
         pg.display.set_mode(display,pg.OPENGL|pg.DOUBLEBUF)
 
+        self.seed = seed
+        self.cell_size = cell_size
+        self.resolution = resolution
         self.clock = pg.time.Clock()
+        self.display = display
 
 
-        self.mainLoop()
+        self.mainLoop(display)
 
-    def mainLoop(self):
-        display = (640, 480)
+    # Main operations like drawing the terrain and updating by each time frame are made here.
+    def mainLoop(self,display):
 
         glClearColor(0.1, 0.2, 0.2, 1)
 
         gluPerspective(90, display[0] / display[1], 0.1, 120.0)
 
-        glTranslatef(0, -10, -10)
+        glTranslatef(0, -10, -20)
 
-        glRotatef(0, 0, 0, 0)
+        glRotatef(30, 40, 0, 0)
+        glRotatef(135, 0, 20, 0)
 
         running = True
 
-        mesh_surface = MeshSurface(64)
+        terrain = TerrainMesh(self.cell_size,self.seed,self.resolution)
 
+        #In this loop frame is updated each defined waiting time here it is 10 miliseconds.
         while (running):
 
             for event in pg.event.get():
                 if (event.type == pg.QUIT):
                     running = False
-            glRotatef(2, 0, 15, 0)
+
+            # Rotate our terrain around itself 4 degree in each iteration.
+            glRotatef(4, 0, 15, 0)
             glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
 
-            mesh_surface.render();
+            #Green wireframe color
+            glColor3f(0, 1, 0)
+
+            terrain.render()
             pg.display.flip()
             pg.time.wait(10)
 
@@ -110,17 +134,28 @@ class App:
         pg.quit()
 
 
+#Creating the Mesh using vertices and edge matrices, and defining them to OpenGL
+class TerrainMesh:
 
-class MeshSurface:
+    def __init__(self, cell_size=10, seed=32, terrain_resolution=10):
+        self.cell_size = cell_size
+        self.seed = seed;
+        self.terrain_resolution = terrain_resolution
+        self.update_terrain()
 
     def update_terrain(self):
-        lin_array = np.linspace(1, 20, self.cell_size + 1, endpoint=False)
-        x, y = np.meshgrid(lin_array, lin_array);
-        # print(TerrainModel.perlin(x, y, seed=32));
-        # print(TerrainModel.perlin(x, y, seed=32).shape);
+
+        # If the terrain resolution increase, there will be more interpolation between points.
+        # Briefly, high resolution causes high noise.
+        lin_array = np.linspace(1, self.terrain_resolution, self.cell_size + 1, endpoint=False)
+
+        #Make this linear interpolation x and y
+        x, y = np.meshgrid(lin_array, lin_array)
+
         _vertices = np.zeros(((self.cell_size + 1) ** 2, 3))
-        _terrain_model = TerrainModel.perlin(x, y, seed=random.randint(0,32))
-        _terrain_model *= 8;
+
+        _terrain_model = TerrainModel.perlin(x, y, seed=self.seed)
+        _terrain_model *= 8
 
         x_idx = 0
         z_idx = 0
@@ -136,13 +171,7 @@ class MeshSurface:
                 z_idx += 1
 
         _edges = np.zeros(((self.cell_size + 1) * (self.cell_size) * 2, 2), dtype="int")
-        _triangulation_edges = np.zeros(((self.cell_size) * (self.cell_size), 2), dtype="int")
-
         while (True):
-
-            # for j in range(0,_edges.shape[0],1):
-            #    if(j < cell_size*cell_size):
-            #        _triangulation_edges[j,j+cell_size+2]
 
             edge_index = 0
 
@@ -167,68 +196,109 @@ class MeshSurface:
 
             break
 
-        print(_vertices)
-        print(_triangulation_edges.shape);
-        print(_edges)
         self.edges = _edges
         self.vertices = _vertices
 
-    def __init__(self,cell_size = 10):
-        self.cell_size = cell_size;
-        self.update_terrain();
 
-
-
-
+    # For a better optimization terrain is only rendered when this method is called.
+    # Since there will be a lot of calculations in high cell sizes, I preferred to have it calculated when necessary rather than having it done every time.
     def render(self):
-        self.update_terrain();
+        self.update_terrain()
         glBegin(GL_LINES)
         for edge in self.edges:
             for vertex in edge:
                 glVertex3fv(self.vertices[vertex])
         glEnd()
 
-
+    #To destroy drawn vertices and edges. Not used yet.
     def destroy(self):
-
         glDeleteVertexArrays(1, (self.vao,))
         glDeleteBuffers(1, (self.vbo,))
 
-#if __name__ == '__main__':
-#    app = App()
+
+# When this method is called the openGL frame will be drawn. This will be used in Ttkinter GUI. Whenever the button is clicked this method will be called.
+def showTerrain(cell_size,seed,resolution):
+    if __name__ == '__main__':
+        terrain_frame = OpenGlFrame(cell_size,seed,resolution)
+
+# This part will be about Tkinter GUI.
+
+# Initialization values of the Tkinter GUI.
+root = tk.Tk()
+root.geometry('640x480')
+root.resizable(False, False)
+root.title('Terrain Generator')
+
+# Explanations of adjustments like cell size and seed etc..
+
+#Title text
+project_title_text = Label(root,text ="Random Terrain Generator", font='Helvetica 24 bold')
+project_title_text.pack(ipady=5)
+
+cell_text = Label(root,text ="Cell Size", font='Helvetica 12 bold')
+cell_text.pack(ipady=5)
+
+# For setting the cell size I used a scaler, It is yet 4 to 128 due to lack of optimization.
+cell_size_scale = Scale(root, from_=4, to=128,orient = "horizontal")
+cell_size_scale.pack()
+
+seed_text = Label(root,text ="Random Seed", font='Helvetica 12 bold')
+seed_text.pack(ipady=5)
+
+# Seed is can be also set up by scaler.
+seed_scale = Scale(root, from_=1, to=128,orient = "horizontal")
+seed_scale.pack()
+
+terrain_res_text = Label(root,text ="Resolution", font='Helvetica 12 bold')
+terrain_res_text.pack(ipady=5)
+
+# Terrain res is can be also set up by scaler.
+terrain_res_scale = Scale(root, from_=1, to=40,orient = "horizontal")
+terrain_res_scale.pack(ipady=5)
+
+def generate_button_clicked():
+        showTerrain(cell_size_scale.get(),seed_scale.get(),terrain_res_scale.get())
 
 
-class AppWindow(OpenGLFrame):
-    def initgl(self):
+def perlin_map2D_button_clicked():
+    TerrainModel.getTerrain2DView(cell_size_scale.get(), seed_scale.get(),terrain_res_scale.get())
 
-        display = (640, 480)
 
-        glClearColor(0.1, 0.2, 0.2, 1.0)
-        gluPerspective(45, self.width / self.height, 0.1, 50.0)
-        glTranslatef(0.0, 0.0, -5.0)
+generate_terrain_button = tk.Button(
+    root,
+    text='Generate Terrain',
+    command=lambda: generate_button_clicked()
+)
 
-        self.mesh_surface = MeshSurface(64)
-        self.mesh_surface.render()
+generate_terrain_button.pack(
+    ipadx=5,
+    ipady=3,
+    pady = 2,
+    expand=False
+)
 
-        # Schedule the first update after 10 milliseconds
-        self.after(10, self.update_frame)
+generate_terrain_button.pack(
+    ipadx=5,
+    ipady=3,
+)
 
-    def redraw(self):
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
+perlin_map2D_button = tk.Button(
+    root,
+    text='Generate 2D Perlin Map',
+    command=lambda: perlin_map2D_button_clicked()
+)
 
-        self.mesh_surface.render();
-        self.update()
+perlin_map2D_button.pack(
+    ipadx=5,
+    ipady=5,
+    pady = 2,
+    expand=False,
+)
 
-    def update_frame(self):
 
-        self.redraw()
+seed_text = Label(root,text ="Gökay Akçay", font='Helvetica 7 normal')
+seed_text.pack(ipady=5)
 
-        # Schedule the next update after 10 milliseconds
-        self.after(10, self.update_frame)
 
-if __name__ == "__main__":
-    root = tk.Tk()
-    root.geometry("640x480")
-    app = AppWindow(root, width=640, height=480)
-    app.pack(fill=tk.BOTH, expand=tk.YES)
-    app.mainloop()
+
+root.mainloop()
